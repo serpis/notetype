@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A fast keyboard exercise for learning to read notes in treble and bass clef.">
+  <title>NoteType</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231b1d1f'/%3E%3Cpath d='M41 12v31.5a10 10 0 1 1-5-8.7V17l-18 4v28.5a10 10 0 1 1-5-8.7V17z' fill='%23e8b44c'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #202224;
+      --panel: #282b2e;
+      --panel-soft: #242628;
+      --ink: #e8e7e2;
+      --muted: #8e9296;
+      --faint: #505458;
+      --accent: #e8b44c;
+      --accent-soft: rgba(232, 180, 76, .14);
+      --error: #e86b62;
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-height: 100%; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(232, 180, 76, .065), transparent 34rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: ui-monospace, "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font: inherit; }
+
+    .app {
+      width: min(980px, calc(100% - 40px));
+      min-height: 100vh;
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 32px 0 24px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.15rem;
+      font-weight: 750;
+      letter-spacing: -.035em;
+    }
+
+    .brand-mark {
+      width: 31px;
+      height: 31px;
+      color: var(--accent);
+    }
+
+    .round-label {
+      color: var(--muted);
+      font-size: .84rem;
+    }
+
+    main {
+      align-self: center;
+      padding: 64px 0 48px;
+    }
+
+    .game-shell {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .options {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px 22px;
+      margin-bottom: 26px;
+    }
+
+    .option-group {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .option-label {
+      margin-right: 3px;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .option-button {
+      appearance: none;
+      min-height: 35px;
+      padding: 7px 11px;
+      border: 1px solid rgba(255,255,255,.075);
+      border-radius: 8px;
+      background: var(--panel-soft);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: .78rem;
+      transition: color .14s ease, border-color .14s ease, background .14s ease;
+    }
+
+    .option-button:hover { color: var(--ink); }
+
+    .option-button.active {
+      border-color: rgba(232,180,76,.48);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .option-button:disabled {
+      cursor: default;
+      opacity: .68;
+    }
+
+    .note-option {
+      min-width: 35px;
+      padding-inline: 9px;
+      text-transform: uppercase;
+    }
+
+    .range-option {
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .option-button:focus-visible {
+      outline: 3px solid rgba(232,180,76,.28);
+      outline-offset: 2px;
+    }
+
+    .row-stepper {
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.075);
+      border-radius: 8px;
+      background: var(--panel-soft);
+    }
+
+    .stepper-button {
+      appearance: none;
+      width: 34px;
+      min-height: 33px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .stepper-button:hover { color: var(--accent); background: var(--accent-soft); }
+    .stepper-button:disabled { color: var(--faint); cursor: default; background: transparent; }
+    .stepper-button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+    .row-count {
+      min-width: 34px;
+      color: var(--ink);
+      font-size: .82rem;
+      text-align: center;
+    }
+
+    .hud {
+      min-height: 31px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: .86rem;
+    }
+
+    .hud strong {
+      color: var(--accent);
+      font-size: 1.55rem;
+      font-weight: 550;
+      line-height: 1;
+    }
+
+    .timer { text-align: center; }
+    .errors { text-align: right; }
+
+    .stage {
+      position: relative;
+      overflow: hidden;
+      min-height: 380px;
+      display: grid;
+      place-items: center;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.055);
+      border-radius: var(--radius);
+      box-shadow: 0 22px 70px rgba(0,0,0,.19);
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent) var(--progress), transparent var(--progress));
+      transition: background .18s ease;
+    }
+
+    .practice-view {
+      width: 100%;
+      padding: 34px 42px 32px;
+      text-align: center;
+    }
+
+    .note-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      min-height: 316px;
+    }
+
+    .score-row {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 150px;
+      padding: 6px 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.055);
+      border-radius: 13px;
+      background: var(--panel-soft);
+      transition: border-color .16s ease, background .16s ease;
+    }
+
+    .score-row svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
+    .score-row.active {
+      border-color: rgba(232,180,76,.72);
+      background: rgba(232,180,76,.055);
+      box-shadow: inset 0 0 0 1px rgba(232,180,76,.12);
+    }
+
+    .prompt {
+      min-height: 24px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: .88rem;
+    }
+
+    .prompt.error {
+      color: var(--error);
+      animation: nudge .18s ease-in-out;
+    }
+
+    @keyframes nudge {
+      0%, 100% { transform: translateX(0); }
+      35% { transform: translateX(-5px); }
+      70% { transform: translateX(5px); }
+    }
+
+    .sequence {
+      display: flex;
+      gap: 4px;
+      margin-top: 24px;
+    }
+
+    .step {
+      flex: 1 1 0;
+      min-width: 2px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--faint);
+      transition: background .18s ease, transform .18s ease;
+    }
+
+    .step.done { background: var(--accent); }
+    .step.current { background: var(--ink); transform: scaleY(1.6); }
+
+    .key-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 22px;
+    }
+
+    .key {
+      min-width: 38px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,.075);
+      border-bottom-width: 3px;
+      border-radius: 8px;
+      color: #b9bcbe;
+      background: var(--panel-soft);
+      font-size: .83rem;
+      text-transform: uppercase;
+      transition: color .12s ease, border-color .12s ease, transform .12s ease;
+    }
+
+    .key.pressed {
+      color: var(--accent);
+      border-color: rgba(232,180,76,.45);
+      transform: translateY(2px);
+    }
+
+    .result-view {
+      display: none;
+      width: 100%;
+      padding: 42px 48px;
+    }
+
+    .result-view h1 {
+      margin: 0 0 34px;
+      color: var(--accent);
+      font-size: clamp(1.55rem, 4vw, 2.35rem);
+      font-weight: 600;
+      letter-spacing: -.05em;
+    }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    .stat {
+      padding: 18px;
+      background: var(--panel-soft);
+      border-radius: 12px;
+    }
+
+    .stat span {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .stat strong {
+      color: var(--ink);
+      font-size: clamp(1.45rem, 4vw, 2.15rem);
+      font-weight: 520;
+    }
+
+    .restart {
+      appearance: none;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 17px;
+      background: var(--accent);
+      color: #24211a;
+      cursor: pointer;
+      font-weight: 750;
+      transition: filter .15s ease, transform .15s ease;
+    }
+
+    .restart:hover { filter: brightness(1.08); }
+    .restart:active { transform: translateY(1px); }
+    .restart:focus-visible { outline: 3px solid rgba(232,180,76,.35); outline-offset: 3px; }
+
+    footer {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    kbd {
+      padding: 2px 6px;
+      border: 1px solid var(--faint);
+      border-radius: 5px;
+      color: #b9bcbe;
+      background: var(--panel-soft);
+      font-family: inherit;
+      font-size: .75rem;
+    }
+
+    .flash-correct { animation: flash-correct .2s ease; }
+    .flash-wrong { animation: flash-wrong .25s ease; }
+
+    @keyframes flash-correct {
+      50% { background: rgba(119,197,138,.13); }
+    }
+
+    @keyframes flash-wrong {
+      45% { background: rgba(232,107,98,.13); }
+    }
+
+    @media (max-width: 620px) {
+      .app { width: min(100% - 24px, 980px); padding-top: 20px; }
+      main { padding: 38px 0 28px; }
+      .options { align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+      .option-group { flex-wrap: wrap; justify-content: center; }
+      .sequence { gap: 1px; }
+      .step { min-width: 1px; }
+      .stage { min-height: 350px; }
+      .practice-view, .result-view { padding: 30px 20px; }
+      .note-grid { gap: 8px; min-height: 246px; }
+      .score-row { min-height: 118px; padding: 3px; border-radius: 10px; }
+      .hud { grid-template-columns: 1fr 1fr; }
+      .timer { text-align: left; }
+      .errors { text-align: right; }
+      .progress-count { grid-column: 1 / -1; grid-row: 1; text-align: center; }
+      .results { grid-template-columns: 1fr; }
+      .stat { display: flex; align-items: center; justify-content: space-between; }
+      .stat span { margin: 0; }
+      .result-view h1 { margin-bottom: 22px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+    <defs>
+      <path id="gClefShape" d="M 7.25 -59.5 C 7.25 -65.418 8.145 -70.855 9.938 -75.813 C 11.73 -80.77 14.145 -85.375 17.188 -89.625 C 20.23 -93.875 23.793 -97.875 27.875 -101.625 C 31.957 -105.375 36.332 -109.082 41 -112.75 C 40 -118.332 39.457 -124.332 39.375 -130.75 C 39.375 -141.75 41.043 -150.625 44.375 -157.375 C 47.707 -164.375 52.25 -167.875 58 -167.875 C 62 -167.875 65.23 -165.645 67.688 -161.188 C 70.145 -156.73 71.375 -150.25 71.375 -141.75 C 71.375 -130.918 68.625 -121.707 63.125 -114.125 C 61.207 -111.543 59.043 -108.957 56.625 -106.375 C 54.207 -103.793 51.457 -101.207 48.375 -98.625 C 49.707 -92.293 50.957 -85.543 52.125 -78.375 C 59.875 -78.375 66.168 -75.957 71 -71.125 C 75.918 -66.207 78.375 -59.75 78.375 -51.75 C 78.375 -45.332 76.813 -39.832 73.688 -35.25 C 70.563 -30.668 66.375 -27.293 61.125 -25.125 C 61.707 -21.207 62.145 -17.52 62.438 -14.063 C 62.73 -10.605 62.875 -7.293 62.875 -4.125 C 62.875 4.207 60.938 10.25 57.063 14 C 53.188 17.75 48.082 19.625 41.75 19.625 C 35.582 19.625 30.668 17.832 27 14.25 C 23.332 10.582 21.5 6.625 21.5 2.375 C 21.418 -1.375 22.438 -4.457 24.563 -6.875 C 26.688 -9.293 29.5 -10.5 33 -10.5 C 36.5 -10.5 39.207 -9.418 41.125 -7.25 C 43.043 -5.082 44 -2.418 44 0.75 C 44 2.5 43.668 4.063 43 5.438 C 42.332 6.813 41.418 7.938 40.25 8.813 C 39.082 9.688 37.75 10.27 36.25 10.563 C 34.75 10.855 33.125 10.793 31.375 10.375 C 33.543 13.543 37.082 15.125 42 15.125 C 47.5 15.125 51.645 13.5 54.438 10.25 C 57.23 7 58.625 2.25 58.625 -4 C 58.625 -6.918 58.48 -10 58.188 -13.25 C 57.895 -16.5 57.5 -20 57 -23.75 C 54.082 -23 51 -22.625 47.75 -22.625 C 41.918 -22.625 36.543 -23.418 31.625 -25 C 26.707 -26.582 22.438 -28.938 18.813 -32.063 C 15.188 -35.188 12.355 -39.043 10.313 -43.625 C 8.27 -48.207 7.25 -53.5 7.25 -59.5 Z M 53.5 -45.625 C 52.582 -51.793 51.582 -57.875 50.5 -63.875 C 46.668 -63.875 43.48 -62.707 40.938 -60.375 C 38.395 -58.043 37.125 -54.875 37.125 -50.875 C 37.125 -48.293 37.77 -46 39.063 -44 C 40.355 -42 42.168 -40.418 44.5 -39.25 C 44.168 -38.332 43.875 -37.543 43.625 -36.875 C 39.875 -37.875 36.625 -39.957 33.875 -43.125 C 31.125 -46.293 29.75 -50.668 29.75 -56.25 C 29.75 -62.332 31.918 -67.543 36.25 -71.875 C 39.582 -75.043 43.5 -77.082 48 -78 C 46.418 -86.25 45.25 -92.082 44.5 -95.5 C 41.082 -92.75 37.77 -89.895 34.563 -86.938 C 31.355 -83.98 28.5 -80.875 26 -77.625 C 23.5 -74.375 21.5 -70.918 20 -67.25 C 18.5 -63.582 17.75 -59.625 17.75 -55.375 C 17.75 -50.625 18.543 -46.52 20.125 -43.063 C 21.707 -39.605 23.895 -36.75 26.688 -34.5 C 29.48 -32.25 32.75 -30.582 36.5 -29.5 C 40.25 -28.418 44.293 -27.875 48.625 -27.875 C 51.375 -27.875 53.875 -28.207 56.125 -28.875 C 55.207 -34.375 54.332 -39.957 53.5 -45.625 Z M 45.625 -115.875 C 52.125 -120.625 56.855 -125.27 59.813 -129.813 C 62.77 -134.355 64.25 -139.043 64.25 -143.875 C 64.25 -146.207 63.707 -148.25 62.625 -150 C 61.543 -151.75 59.957 -152.625 57.875 -152.625 C 53.957 -152.625 50.832 -149.832 48.5 -144.25 C 46.168 -138.832 45 -132.168 45 -124.25 C 45 -121.668 45.207 -118.875 45.625 -115.875 Z M 69.875 -47.75 C 69.875 -50.082 69.438 -52.25 68.563 -54.25 C 67.688 -56.25 66.543 -57.957 65.125 -59.375 C 63.707 -60.793 62.082 -61.895 60.25 -62.688 C 58.418 -63.48 56.543 -63.875 54.625 -63.875 C 55.457 -59.957 56.332 -55.082 57.25 -49.25 C 58.082 -43.918 59 -37.668 60 -30.5 C 63.582 -32.418 66.125 -35 67.625 -38.25 C 69.125 -41.5 69.875 -44.668 69.875 -47.75 Z"></path>
+      <path id="fClefBodyShape" d="M 57.125 -167.875 C 65.375 -167.875 72.855 -166.395 79.563 -163.438 C 86.27 -160.48 92 -156.355 96.75 -151.063 C 101.5 -145.77 105.168 -139.48 107.75 -132.188 C 110.332 -124.895 111.625 -116.918 111.625 -108.25 C 111.625 -102.25 111.063 -96.395 109.938 -90.688 C 108.813 -84.98 107.207 -79.48 105.125 -74.188 C 103.043 -68.895 100.582 -63.813 97.75 -58.938 C 94.918 -54.063 91.75 -49.457 88.25 -45.125 C 85 -41.125 81.355 -37.313 77.313 -33.688 C 73.27 -30.063 69.043 -26.688 64.625 -23.563 C 60.207 -20.438 55.75 -17.625 51.25 -15.125 C 46.75 -12.625 42.418 -10.48 38.25 -8.688 C 34.082 -6.895 30.25 -5.52 26.75 -4.563 C 23.25 -3.605 20.293 -3.125 17.875 -3.125 C 16.125 -3.125 15.25 -3.832 15.25 -5.25 C 15.25 -6.082 15.605 -6.75 16.313 -7.25 C 17.02 -7.75 17.918 -8.207 19 -8.625 C 30.668 -13.543 41.168 -19.813 50.5 -27.438 C 59.832 -35.063 67.582 -44.043 73.75 -54.375 C 78.168 -61.707 81.563 -69.645 83.938 -78.188 C 86.313 -86.73 87.5 -95.918 87.5 -105.75 C 87.5 -112.5 86.707 -118.957 85.125 -125.125 C 83.543 -131.293 81.188 -136.75 78.063 -141.5 C 74.938 -146.25 71.082 -150.02 66.5 -152.813 C 61.918 -155.605 56.668 -157 50.75 -157 C 47.832 -157 44.918 -156.543 42 -155.625 C 39.082 -154.707 36.418 -153.375 34 -151.625 C 31.582 -149.875 29.582 -147.707 28 -145.125 C 26.418 -142.543 25.543 -139.582 25.375 -136.25 C 26.793 -136.918 28.395 -137.457 30.188 -137.875 C 31.98 -138.293 34.125 -138.5 36.625 -138.5 C 39.457 -138.5 42.125 -138 44.625 -137 C 47.125 -136 49.313 -134.543 51.188 -132.625 C 53.063 -130.707 54.563 -128.375 55.688 -125.625 C 56.813 -122.875 57.375 -119.75 57.375 -116.25 C 57.375 -109.082 55.23 -103.52 50.938 -99.563 C 46.645 -95.605 40.832 -93.625 33.5 -93.625 C 30.082 -93.625 26.832 -94.207 23.75 -95.375 C 20.668 -96.543 17.957 -98.313 15.625 -100.688 C 13.293 -103.063 11.438 -106.063 10.063 -109.688 C 8.688 -113.313 8 -117.543 8 -122.375 C 8 -128.543 9.23 -134.375 11.688 -139.875 C 14.145 -145.375 17.563 -150.207 21.938 -154.375 C 26.313 -158.543 31.5 -161.832 37.5 -164.25 C 43.5 -166.668 50.043 -167.875 57.125 -167.875 Z"></path>
+    </defs>
+  </svg>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M43 8v35.5a10.5 10.5 0 1 1-5-8.9V16.5l-20 4.4v28.6a10.5 10.5 0 1 1-5-8.9V17z" fill="currentColor"/>
+        </svg>
+        <span>notetype</span>
+      </div>
+      <div class="round-label" id="roundLabel" aria-live="polite"></div>
+    </header>
+
+    <main>
+      <div class="game-shell">
+        <div class="options" aria-label="Practice settings">
+          <div class="option-group" role="group" aria-label="Choose clef">
+            <span class="option-label">clef</span>
+            <button class="option-button" type="button" data-setting="clef" data-value="treble">G</button>
+            <button class="option-button" type="button" data-setting="clef" data-value="bass">F</button>
+            <button class="option-button" type="button" data-setting="clef" data-value="both">G + F</button>
+          </div>
+          <div class="option-group" role="group" aria-label="Choose pitch range">
+            <span class="option-label">range</span>
+            <button class="option-button range-option" type="button" data-setting="range" data-value="lower">C4–B4</button>
+            <button class="option-button range-option" type="button" data-setting="range" data-value="upper">C5–B5</button>
+            <button class="option-button range-option" type="button" data-setting="range" data-value="both">C4–B5</button>
+          </div>
+          <div class="option-group" role="group" aria-label="Choose notes">
+            <span class="option-label">notes</span>
+            <button class="option-button note-option" type="button" data-note="c">C</button>
+            <button class="option-button note-option" type="button" data-note="d">D</button>
+            <button class="option-button note-option" type="button" data-note="e">E</button>
+            <button class="option-button note-option" type="button" data-note="f">F</button>
+            <button class="option-button note-option" type="button" data-note="g">G</button>
+            <button class="option-button note-option" type="button" data-note="a">A</button>
+            <button class="option-button note-option" type="button" data-note="b">B</button>
+          </div>
+          <div class="option-group" role="group" aria-label="Choose number of rows">
+            <span class="option-label">rows</span>
+            <div class="row-stepper">
+              <button class="stepper-button" id="rowDecrease" type="button" aria-label="Fewer rows">−</button>
+              <output class="row-count" id="rowCount" aria-live="polite">2</output>
+              <button class="stepper-button" id="rowIncrease" type="button" aria-label="More rows">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud">
+          <div class="timer"><strong id="time">0.00</strong> s</div>
+          <div class="progress-count"><span id="position">1</span> / <span id="roundLength">16</span></div>
+          <div class="errors"><span id="errorCount">0</span> errors</div>
+        </div>
+
+        <section class="stage" id="stage" style="--progress: 0%" aria-label="Note-reading practice">
+          <div class="practice-view" id="practiceView">
+            <div class="note-grid" id="noteGrid" aria-label="Two staves with two measures each"></div>
+            <p class="prompt" id="prompt" role="status" aria-live="polite">Press the letter that matches the note</p>
+
+            <div class="sequence" id="sequence" aria-label="Round progress"></div>
+            <div class="key-row" aria-hidden="true">
+              <span class="key" data-key="a">a</span><span class="key" data-key="b">b</span>
+              <span class="key" data-key="c">c</span><span class="key" data-key="d">d</span>
+              <span class="key" data-key="e">e</span><span class="key" data-key="f">f</span>
+              <span class="key" data-key="g">g</span>
+            </div>
+          </div>
+
+          <div class="result-view" id="resultView" aria-live="polite">
+            <h1>Round complete.</h1>
+            <div class="results">
+              <div class="stat"><span>time</span><strong id="finalTime">0.00 s</strong></div>
+              <div class="stat"><span>accuracy</span><strong id="accuracy">100%</strong></div>
+              <div class="stat"><span>errors</span><strong id="finalErrors">0</strong></div>
+            </div>
+            <button class="restart" id="restartButton" type="button">New round</button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer><kbd>tab</kbd><span>restart</span></footer>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const NOTE_NAMES = ["c", "d", "e", "f", "g", "a", "b"];
+      const RANGE_LABELS = {
+        treble: { lower: "C4–B4", upper: "C5–B5", both: "C4–B5" },
+        bass: { lower: "C2–B2", upper: "C3–B3", both: "C2–B3" },
+        both: {
+          lower: "G: C4–B4 / F: C2–B2",
+          upper: "G: C5–B5 / F: C3–B3",
+          both: "G: C4–B5 / F: C2–B3"
+        }
+      };
+      const ROW_SIZE = 8;
+      const PAGE_SIZE = ROW_SIZE * 2;
+      const MAX_ROWS = 16;
+      const stage = document.getElementById("stage");
+      const practiceView = document.getElementById("practiceView");
+      const resultView = document.getElementById("resultView");
+      const prompt = document.getElementById("prompt");
+      const noteGrid = document.getElementById("noteGrid");
+      const timeElement = document.getElementById("time");
+      const positionElement = document.getElementById("position");
+      const errorElement = document.getElementById("errorCount");
+      const sequenceElement = document.getElementById("sequence");
+      const roundLabel = document.getElementById("roundLabel");
+      const roundLengthElement = document.getElementById("roundLength");
+      const rowCountElement = document.getElementById("rowCount");
+      const rowDecreaseButton = document.getElementById("rowDecrease");
+      const rowIncreaseButton = document.getElementById("rowIncrease");
+      const restartButton = document.getElementById("restartButton");
+      const finalTimeElement = document.getElementById("finalTime");
+      const accuracyElement = document.getElementById("accuracy");
+      const finalErrorsElement = document.getElementById("finalErrors");
+
+      let round = [];
+      const settings = { clef: "treble", range: "lower", rows: 2, notes: [...NOTE_NAMES] };
+      let currentIndex = 0;
+      let errors = 0;
+      let attempts = 0;
+      let startTime = null;
+      let timerFrame = null;
+      let transitionTimer = null;
+      let finished = false;
+      let inputLocked = false;
+
+      function getRoundLength() {
+        return settings.rows * ROW_SIZE;
+      }
+
+      function shuffle(values) {
+        const result = [...values];
+        for (let i = result.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+      }
+
+      function balancedBag(values, total, runningTotals = null) {
+        const bag = [];
+        const baseCount = Math.floor(total / values.length);
+        const remainder = total % values.length;
+
+        values.forEach(value => {
+          for (let i = 0; i < baseCount; i += 1) bag.push(value);
+          if (runningTotals) runningTotals[value] += baseCount;
+        });
+
+        const extraOrder = shuffle(values).sort((a, b) => {
+          if (!runningTotals) return 0;
+          return runningTotals[a] - runningTotals[b];
+        });
+        extraOrder.slice(0, remainder).forEach(value => {
+          bag.push(value);
+          if (runningTotals) runningTotals[value] += 1;
+        });
+
+        return shuffle(bag);
+      }
+
+      function makeRound() {
+        const items = [];
+        let lastKey = "";
+        const allowedClefs = settings.clef === "both" ? ["treble", "bass"] : [settings.clef];
+        const allowedRanges = settings.range === "both" ? [0, 1] : [settings.range === "lower" ? 0 : 1];
+        const rangeStart = {
+          treble: [-2, 5], // C–B below/inside G-clef, then C–B above it
+          bass: [-4, 3]    // C–B below/inside F-clef, then C–B above it
+        };
+        const rowClefs = balancedBag(allowedClefs, settings.rows);
+        const noteTotals = Object.fromEntries(settings.notes.map(note => [note, 0]));
+        const noteBags = {};
+        const rangeBags = {};
+
+        allowedClefs.forEach(clefType => {
+          const notesForClef = rowClefs.filter(rowClef => rowClef === clefType).length * ROW_SIZE;
+          noteBags[clefType] = balancedBag(settings.notes, notesForClef, noteTotals);
+          rangeBags[clefType] = balancedBag(allowedRanges, notesForClef);
+        });
+
+        rowClefs.forEach(rowClef => {
+          for (let i = 0; i < ROW_SIZE; i += 1) {
+            const rangeIndex = rangeBags[rowClef].pop();
+            let noteName = noteBags[rowClef].pop();
+            let key = `${rowClef}-${rangeIndex}-${noteName}`;
+
+            if (key === lastKey) {
+              const swapIndex = noteBags[rowClef].findIndex(candidate => candidate !== noteName);
+              if (swapIndex >= 0) {
+                [noteName, noteBags[rowClef][swapIndex]] = [noteBags[rowClef][swapIndex], noteName];
+                key = `${rowClef}-${rangeIndex}-${noteName}`;
+              }
+            }
+
+            const position = rangeStart[rowClef][rangeIndex] + NOTE_NAMES.indexOf(noteName);
+            const item = { clef: rowClef, position, answer: noteName };
+            lastKey = key;
+            items.push(item);
+          }
+        });
+        return items;
+      }
+
+      function quarterNoteMarkup(item, index, x) {
+        const y = 112 - item.position * 9;
+        const stemUp = item.position < 4;
+        const isActive = index === currentIndex;
+        const isDone = index < currentIndex;
+        const color = isActive ? "#e8b44c" : isDone ? "#676b6e" : "#e8e7e2";
+        const ledgerPositions = [];
+        for (let position = -2; position >= item.position; position -= 2) ledgerPositions.push(position);
+        for (let position = 10; position <= item.position; position += 2) ledgerPositions.push(position);
+        const ledger = ledgerPositions
+          .map(position => `<line x1="${x - 16}" y1="${112 - position * 9}" x2="${x + 16}" y2="${112 - position * 9}"></line>`)
+          .join("");
+        const stem = stemUp
+          ? `<line x1="${x + 10}" y1="${y - 1}" x2="${x + 10}" y2="${y - 42}"></line>`
+          : `<line x1="${x - 10}" y1="${y + 1}" x2="${x - 10}" y2="${y + 42}"></line>`;
+
+        return `
+          <g stroke="${color}" fill="${color}"${isDone ? ' opacity=".72"' : ""}>
+            ${isActive ? `<rect x="${x - 22}" y="10" width="44" height="130" rx="12" fill="#e8b44c" opacity=".07" stroke="none"></rect>` : ""}
+            <g fill="none" stroke-width="2" stroke-linecap="round">${ledger}</g>
+            <ellipse cx="${x}" cy="${y}" rx="10" ry="7" transform="rotate(-18 ${x} ${y})"></ellipse>
+            <g fill="none" stroke-width="3" stroke-linecap="round">${stem}</g>
+          </g>`;
+      }
+
+      function scoreRowMarkup(items, rowStart) {
+        const isTreble = items[0].clef === "treble";
+        const isActiveRow = currentIndex >= rowStart && currentIndex < rowStart + ROW_SIZE;
+        const noteX = [145, 210, 275, 340, 430, 495, 560, 625];
+        const staffLines = [40, 58, 76, 94, 112]
+          .map(y => `<line x1="12" y1="${y}" x2="710" y2="${y}"></line>`)
+          .join("");
+        const notes = items.map((item, offset) => quarterNoteMarkup(item, rowStart + offset, noteX[offset])).join("");
+
+        return `
+          <div class="score-row ${isActiveRow ? "active" : ""}" role="img" aria-label="${isTreble ? "Treble clef" : "Bass clef"}, two measures, notes ${rowStart + 1} through ${rowStart + items.length}${isActiveRow ? ", current row" : ""}">
+            <svg viewBox="0 0 730 152" role="img" aria-hidden="true">
+              <g stroke="#8e9296" stroke-width="1.5" stroke-linecap="round">${staffLines}</g>
+              ${isTreble
+                ? '<use href="#gClefShape" transform="translate(15 126) scale(.63)" fill="#e8e7e2"></use>'
+                : `<use href="#fClefBodyShape" transform="translate(13 108.7) scale(.44)" fill="#e8e7e2"></use>
+                   <circle cx="72" cy="49" r="5" fill="#e8e7e2"></circle>
+                   <circle cx="72" cy="67" r="5" fill="#e8e7e2"></circle>`}
+              <g fill="#e8e7e2" font-family="Georgia, serif" font-size="31" font-weight="700" text-anchor="middle">
+                <text x="92" y="70">4</text><text x="92" y="105">4</text>
+              </g>
+              <g stroke="#8e9296" stroke-width="2">
+                <line x1="385" y1="40" x2="385" y2="112"></line>
+                <line x1="710" y1="40" x2="710" y2="112"></line>
+              </g>
+              ${notes}
+            </svg>
+          </div>`;
+      }
+
+      function renderNotePage(animate = false) {
+        const pageStart = Math.floor(currentIndex / ROW_SIZE) * ROW_SIZE;
+        const visibleNotes = round.slice(pageStart, pageStart + PAGE_SIZE);
+        const rows = [];
+        for (let offset = 0; offset < visibleNotes.length; offset += ROW_SIZE) {
+          rows.push(scoreRowMarkup(visibleNotes.slice(offset, offset + ROW_SIZE), pageStart + offset));
+        }
+        noteGrid.innerHTML = rows.join("");
+        positionElement.textContent = currentIndex + 1;
+        stage.style.setProperty("--progress", `${currentIndex / round.length * 100}%`);
+        updateSequence();
+        if (animate) {
+          noteGrid.animate(
+            [{ opacity: .2, transform: "translateY(14px)" }, { opacity: 1, transform: "translateY(0)" }],
+            { duration: 220, easing: "ease-out" }
+          );
+        }
+      }
+
+      function updateSequence() {
+        [...sequenceElement.children].forEach((step, index) => {
+          step.className = "step";
+          if (index < currentIndex) step.classList.add("done");
+          if (index === currentIndex && !finished) step.classList.add("current");
+        });
+      }
+
+      function tick(now) {
+        if (startTime !== null && !finished) {
+          timeElement.textContent = ((now - startTime) / 1000).toFixed(2);
+          timerFrame = requestAnimationFrame(tick);
+        }
+      }
+
+      function startTimer() {
+        if (startTime === null) {
+          startTime = performance.now();
+          timerFrame = requestAnimationFrame(tick);
+        }
+      }
+
+      function flash(kind) {
+        stage.classList.remove("flash-correct", "flash-wrong");
+        void stage.offsetWidth;
+        stage.classList.add(kind === "correct" ? "flash-correct" : "flash-wrong");
+      }
+
+      function handleAnswer(key) {
+        if (finished || inputLocked || !NOTE_NAMES.includes(key)) return;
+        startTimer();
+        attempts += 1;
+
+        const keyCap = document.querySelector(`[data-key="${key}"]`);
+        keyCap.classList.add("pressed");
+        setTimeout(() => keyCap.classList.remove("pressed"), 120);
+
+        if (key === round[currentIndex].answer) {
+          inputLocked = true;
+          flash("correct");
+          prompt.className = "prompt";
+          prompt.textContent = "Correct";
+          currentIndex += 1;
+
+          if (currentIndex === round.length) {
+            finishRound();
+          } else {
+            transitionTimer = setTimeout(() => {
+              prompt.textContent = "Press the letter that matches the note";
+              renderNotePage(currentIndex % ROW_SIZE === 0);
+              inputLocked = false;
+              transitionTimer = null;
+            }, 110);
+          }
+        } else {
+          errors += 1;
+          errorElement.textContent = errors;
+          prompt.className = "prompt error";
+          prompt.textContent = `${key.toUpperCase()} is not correct — try again`;
+          flash("wrong");
+        }
+      }
+
+      function finishRound() {
+        finished = true;
+        cancelAnimationFrame(timerFrame);
+        const elapsed = (performance.now() - startTime) / 1000;
+        const accuracy = Math.round((round.length / attempts) * 100);
+        timeElement.textContent = elapsed.toFixed(2);
+        stage.style.setProperty("--progress", "100%");
+        updateSequence();
+        finalTimeElement.textContent = `${elapsed.toFixed(2)} s`;
+        accuracyElement.textContent = `${accuracy}%`;
+        finalErrorsElement.textContent = errors;
+        practiceView.style.display = "none";
+        resultView.style.display = "block";
+        restartButton.focus();
+      }
+
+      function resetRound() {
+        cancelAnimationFrame(timerFrame);
+        clearTimeout(transitionTimer);
+        transitionTimer = null;
+        round = makeRound();
+        currentIndex = 0;
+        errors = 0;
+        attempts = 0;
+        startTime = null;
+        finished = false;
+        inputLocked = false;
+        timeElement.textContent = "0.00";
+        errorElement.textContent = "0";
+        stage.classList.remove("flash-correct", "flash-wrong");
+        prompt.className = "prompt";
+        prompt.textContent = "Press the letter that matches the note";
+        practiceView.style.display = "block";
+        resultView.style.display = "none";
+        roundLengthElement.textContent = round.length;
+        sequenceElement.innerHTML = Array.from({length: round.length}, () => '<span class="step"></span>').join("");
+        renderNotePage();
+      }
+
+      function updateSettings(setting, value) {
+        settings[setting] = value;
+        renderSettings();
+        resetRound();
+      }
+
+      function renderSettings() {
+        const clefLabel = settings.clef === "treble" ? "treble clef" : settings.clef === "bass" ? "bass clef" : "treble + bass";
+        const rangeLabel = RANGE_LABELS[settings.clef][settings.range];
+        const noteLabel = settings.notes.length === NOTE_NAMES.length
+          ? "all notes"
+          : settings.notes.map(note => note.toUpperCase()).join("");
+
+        document.querySelectorAll(".option-button[data-setting]").forEach(button => {
+          const selected = settings[button.dataset.setting] === button.dataset.value;
+          button.classList.toggle("active", selected);
+          button.setAttribute("aria-pressed", String(selected));
+        });
+
+        document.querySelectorAll(".range-option").forEach(button => {
+          button.textContent = RANGE_LABELS[settings.clef][button.dataset.value];
+          const rangeName = button.dataset.value === "lower" ? "Lower range" : button.dataset.value === "upper" ? "Upper range" : "Both ranges";
+          button.setAttribute("aria-label", `${rangeName}: ${button.textContent}`);
+        });
+
+        rowCountElement.textContent = settings.rows;
+        rowDecreaseButton.disabled = settings.rows <= 1;
+        rowIncreaseButton.disabled = settings.rows >= MAX_ROWS;
+        document.querySelectorAll(".note-option").forEach(button => {
+          const selected = settings.notes.includes(button.dataset.note);
+          button.classList.toggle("active", selected);
+          button.setAttribute("aria-pressed", String(selected));
+          button.disabled = selected && settings.notes.length === 1;
+        });
+        roundLabel.textContent = `${settings.rows} ${settings.rows === 1 ? "row" : "rows"} · ${getRoundLength()} notes · ${clefLabel} · ${rangeLabel} · ${noteLabel}`;
+      }
+
+      function updateRowCount(delta) {
+        settings.rows = Math.max(1, Math.min(MAX_ROWS, settings.rows + delta));
+        renderSettings();
+        resetRound();
+      }
+
+      function toggleNote(note) {
+        if (settings.notes.includes(note)) {
+          if (settings.notes.length === 1) return;
+          settings.notes = settings.notes.filter(selectedNote => selectedNote !== note);
+        } else {
+          settings.notes = NOTE_NAMES.filter(candidate => candidate === note || settings.notes.includes(candidate));
+        }
+        renderSettings();
+        resetRound();
+      }
+
+      document.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        const isUsingControl = event.target.closest?.("button") || event.target.closest?.("[role=group]");
+        if (key === "tab" && !isUsingControl) {
+          event.preventDefault();
+          resetRound();
+          return;
+        }
+        if (finished && (key === "enter" || key === " ")) {
+          event.preventDefault();
+          resetRound();
+          return;
+        }
+        handleAnswer(key);
+      });
+
+      restartButton.addEventListener("click", resetRound);
+      rowDecreaseButton.addEventListener("click", () => updateRowCount(-1));
+      rowIncreaseButton.addEventListener("click", () => updateRowCount(1));
+      document.querySelectorAll(".option-button[data-setting]").forEach(button => {
+        button.addEventListener("click", () => updateSettings(button.dataset.setting, button.dataset.value));
+      });
+      document.querySelectorAll(".note-option").forEach(button => {
+        button.addEventListener("click", () => toggleNote(button.dataset.note));
+      });
+      renderSettings();
+      resetRound();
+    })();
+  </script>
+</body>
+</html>
